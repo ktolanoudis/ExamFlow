@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ExamFlow — Upload PDFs</title>
+<style>
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; background:#f0f2f5; margin:0; padding:0; position:relative; min-height:100vh; }
+  header { background:#0d1b2a; color:white; padding:20px; text-align:center; font-size:1.6rem; font-weight:700; }
+  main { max-width:900px; margin:24px auto; background:white; padding:28px; border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,0.12); }
+  input[type=file], button, input[type=text] { font-size:14px; padding:10px; border-radius:6px; border:1px solid #ccc; }
+  button { background:#4f46e5; color:white; cursor:pointer; transition:0.2s; }
+  button:hover { background:#4338ca; }
+  button:disabled { background:#c7d2fe; cursor:not-allowed; }
+  #status { margin-top:12px; color:#555; font-size:13px; }
+  #questionBox { margin-top:20px; padding:20px; border-radius:8px; background:#f9fafb; box-shadow:0 2px 8px rgba(0,0,0,0.08); }
+  #feedback { margin-top:14px; font-weight:600; color:#111827; }
+  #ethLogo { position: fixed; bottom:10px; left:10px; height:50px; opacity:0.85; }
+</style>
+</head>
+<body>
+
+<header>ExamFlow — Agentic Systems Lab</header>
+
+<main>
+  <h2>Upload Course PDFs</h2>
+  <!-- name="files" matches backend -->
+  <input id="pdfFiles" type="file" name="files" accept="application/pdf" multiple />
+  <div id="status">No PDFs uploaded.</div>
+
+  <div id="questionBox" style="display:none;">
+    <h2>Question <span id="questionCounter"></span></h2>
+    <p id="questionText"></p>
+
+    <h3>Your Answer</h3>
+    <input id="answer" type="text" placeholder="Type your answer here" style="width:100%; margin-top:8px;" />
+    <div style="margin-top:12px;">
+      <button id="checkBtn" onclick="checkAnswer()" disabled>Check Answer</button>
+      <button id="nextBtn" onclick="nextQuestion()" style="margin-left:8px;" disabled>Next Question</button>
+    </div>
+    <p id="feedback"></p>
+  </div>
+</main>
+
+<img id="ethLogo" src="https://upload.wikimedia.org/wikipedia/commons/9/99/ETH_Z%C3%BCrich_Logo_black.svg" alt="ETH Zurich Logo">
+
+<script>
+let questions = [];
+let currentIndex = 0;
+let modelAnswer = "";
+
+const statusEl = document.getElementById('status');
+const questionBox = document.getElementById('questionBox');
+const questionText = document.getElementById('questionText');
+const questionCounter = document.getElementById('questionCounter');
+const checkBtn = document.getElementById('checkBtn');
+const nextBtn = document.getElementById('nextBtn');
+const feedbackEl = document.getElementById('feedback');
+
+async function uploadAndAsk(files) {
+  if (!files || files.length === 0) return;
+  statusEl.textContent = `Uploading ${files.length} PDF(s) and generating questions...`;
+  feedbackEl.textContent = '';
+  questionBox.style.display = 'none';
+  checkBtn.disabled = true;
+  nextBtn.disabled = true;
+
+  const formData = new FormData();
+  for (let f of files) formData.append('files', f); // <-- must match backend param
+
+  try {
+    const resp = await fetch('http://localhost:8000/upload_pdf/', {
+      method: 'POST',
+      body: formData
+    });
+    if (!resp.ok) throw new Error(`Server returned ${resp.status}`);
+    const data = await resp.json();
+
+    let parsed;
+    try { parsed = JSON.parse(data.question); } catch { parsed = {question:data.question, model_answer:data.question}; }
+
+    questions = Array.isArray(parsed) ? parsed : [parsed];
+    currentIndex = 0;
+    showQuestion();
+    statusEl.textContent = `Questions ready! Total: ${questions.length}`;
+  } catch (err) {
+    statusEl.textContent = 'Upload failed: ' + err.message;
+    console.error(err);
+  }
+}
+
+function showQuestion() {
+  if (currentIndex >= questions.length) {
+    statusEl.textContent = "All questions completed!";
+    questionBox.style.display = 'none';
+    return;
+  }
+
+  const q = questions[currentIndex];
+  questionText.innerText = q.question;
+  modelAnswer = q.model_answer;
+  questionCounter.innerText = `${currentIndex + 1} / ${questions.length}`;
+  questionBox.style.display = 'block';
+  checkBtn.disabled = false;
+  nextBtn.disabled = true;
+  feedbackEl.textContent = '';
+  document.getElementById('answer').value = '';
+}
+
+async function checkAnswer() {
+  const studentAnswer = document.getElementById('answer').value.trim();
+  if (!studentAnswer) {
+    feedbackEl.innerText = 'Please type an answer before checking.';
+    return;
+  }
+  feedbackEl.innerText = 'Checking answer...';
+  checkBtn.disabled = true;
+
+  try {
+    const formData = new FormData();
+    formData.append('student_answer', studentAnswer);
+    formData.append('model_answer', modelAnswer);
+
+    const resp = await fetch('http://localhost:8000/check_answer/', {
+      method: 'POST',
+      body: formData
+    });
+    if (!resp.ok) throw new Error(`Server returned ${resp.status}`);
+    const data = await resp.json();
+    let parsed;
+    try { parsed = JSON.parse(data.result); } catch { parsed = {score:'?', feedback:data.result}; }
+
+    feedbackEl.innerText = `Score: ${parsed.score} — ${parsed.feedback}`;
+    nextBtn.disabled = false;
+  } catch (err) {
+    feedbackEl.innerText = 'Error checking answer: ' + err.message;
+    console.error(err);
+  }
+}
+
+function nextQuestion() {
+  currentIndex++;
+  showQuestion();
+}
+
+// Correct file input event
+document.getElementById('pdfFiles').addEventListener('change', (ev) => {
+  const files = Array.from(ev.target.files).filter(f => f.type === 'application/pdf');
+  if (files.length === 0) {
+    statusEl.textContent = 'Please select at least one PDF file.';
+    return;
+  }
+  uploadAndAsk(files);
+});
+</script>
