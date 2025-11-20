@@ -1,6 +1,8 @@
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from PyPDF2 import PdfReader
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 import os
 import openai
 from typing import List
@@ -18,6 +20,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Serve static files (HTML/CSS/JS)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+STATIC_DIR = os.path.join(BASE_DIR, "..", "static")  # adjust if static is outside app/
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+# Serve index.html at root
+@app.get("/")
+def read_index():
+    index_path = os.path.join(STATIC_DIR, "index.html")
+    return FileResponse(index_path)
 
 @app.post("/upload_pdf/")
 async def upload_pdf(files: List[UploadFile] = File(...)):
