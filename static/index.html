@@ -117,7 +117,7 @@ async function checkAnswer() {
     fd.append('model_answer', modelAnswer);
 
     try {
-        const resp = await axios.post(`${backendURL}/upload_pdf/`, fd);
+        const resp = await axios.post(`${backendURL}/check_answer/`, fd);
         const parsed = typeof resp.data.result === 'string'
             ? JSON.parse(resp.data.result)
             : resp.data.result;
