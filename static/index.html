@@ -57,6 +57,7 @@ const statusEl = document.getElementById('status');
 const questionBox = document.getElementById('questionBox');
 const questionText = document.getElementById('questionText');
 const feedbackEl = document.getElementById('feedback');
+const backendURL = "https://examflow-1-2dy5.onrender.com";
 
 let modelAnswer = "";
 
@@ -78,7 +79,7 @@ async function uploadAndAsk(files) {
     }
 
     try {
-        const resp = await axios.post('http://localhost:8000/upload_pdf/', formData);
+            const resp = await axios.post(`${backendURL}/upload_pdf/`, formData);
         console.log("Response:", resp.data);
 
         const parsed = typeof resp.data.question === 'string'
@@ -116,7 +117,7 @@ async function checkAnswer() {
     fd.append('model_answer', modelAnswer);
 
     try {
-        const resp = await axios.post('http://localhost:8000/check_answer/', fd);
+        const resp = await axios.post('`${backendURL}/upload_pdf/`', fd);
         const parsed = typeof resp.data.result === 'string'
             ? JSON.parse(resp.data.result)
             : resp.data.result;
