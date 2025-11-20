@@ -15,7 +15,7 @@ textarea { width:100%; }
 .footer-logos {
     position: fixed;
     bottom: 20px;
-    left: 20px;
+    right: 20px;
     display: flex;
     align-items: center;
     gap: 15px;
@@ -37,7 +37,7 @@ textarea { width:100%; }
 <header>ExamFlow</header>
 
 <main>
-<h2>Upload PDF</h2>
+<h2>Upload PDF(s)</h2>
 <input id="pdfInput" type="file" multiple />
 <p id="status" style="display:none;"></p> <!-- hidden initially -->
 
@@ -60,7 +60,7 @@ textarea { width:100%; }
 
     <img class="footer-logo"
          src="https://im.ethz.ch/research/_jcr_content/par/twocolumn/par_left/textimage_1894561152/image.imageformat.text50percent.685615658.svg"
-         alt="ETH D-INFK Logo">
+         alt="ETH Agentic Systems Lab Logo">
 </div>
 
 <script>
@@ -75,12 +75,12 @@ document.getElementById('pdfInput').addEventListener('change', async (ev) => {
     const files = Array.from(ev.target.files);
     if (!files.length) return;
     statusEl.style.display = "block";
-    statusEl.textContent = "Uploading PDFs...";
+    statusEl.textContent = "Uploading PDF(s)...";
     await uploadAndAsk(files);
 });
 
 async function uploadAndAsk(files) {
-    statusEl.textContent = "Uploading PDFs...";
+    statusEl.textContent = "Uploading PDF(s)...";
 
     const formData = new FormData();
     for (const f of files) {

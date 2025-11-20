@@ -46,17 +46,16 @@ COURSE MATERIAL:
 Return JSON with EXACTLY:
 {{
   "question": "<exam question>",
-  "model_answer": "<3-6 sentence ideal answer>"
+  "model_answer": "<3-6 sentence ideal answer based only on the material provided>"
 }}
 """
 
     response = client.chat.completions.create(
-        model="gpt-4o-mini",  # ChatGPT 4-level model
+        model="gpt-5.1",  # ChatGPT 4-level model
         messages=[{"role": "user", "content": prompt}],
         max_tokens=500,
         temperature=0.1,
     )
-
     text = response.choices[0].message.content
     return {"question": text}
 
@@ -98,11 +97,12 @@ async def check_answer(
     """
 
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-5.1",
         messages=[{"role": "user", "content": prompt}],
         max_tokens=300,
         temperature=0.1
     )
 
     text = response.choices[0].message.content
+
     return {"result": text}
