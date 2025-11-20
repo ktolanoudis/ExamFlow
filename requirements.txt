@@ -1,6 +1,5 @@
 fastapi
 uvicorn
-gunicorn
 PyPDF2
 openai
 requests
