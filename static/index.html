@@ -117,7 +117,12 @@ async function checkAnswer() {
     fd.append('model_answer', modelAnswer);
 
     try {
-        const resp = await axios.post(`${backendURL}/check_answer/`, fd);
+        const resp = await axios.post(`${backendURL}/check_answer/`, fd, {
+            headers: {
+                "Accept": "application/json" // optional, do NOT set Content-Type
+            }
+        });
+
         const parsed = typeof resp.data.result === 'string'
             ? JSON.parse(resp.data.result)
             : resp.data.result;
@@ -126,6 +131,7 @@ async function checkAnswer() {
         document.getElementById('showAnswerBtn').style.display = "inline-block";
     } catch (err) {
         feedbackEl.textContent = "Error checking answer.";
+        console.error(err.response?.data || err);
     }
 }
 </script>
