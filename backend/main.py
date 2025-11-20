@@ -51,10 +51,8 @@ Return JSON with EXACTLY:
 """
 
     response = client.chat.completions.create(
-        model="gpt-5.1",  # ChatGPT 4-level model
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=500,
-        temperature=0.1,
+        model="gpt-5-mini",  # ChatGPT 4-level model
+        messages=[{"role": "user", "content": prompt}]
     )
     text = response.choices[0].message.content
     return {"question": text}
@@ -97,10 +95,8 @@ async def check_answer(
     """
 
     response = client.chat.completions.create(
-        model="gpt-5.1",
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=300,
-        temperature=0.1
+        model="gpt-5-mini",
+        messages=[{"role": "user", "content": prompt}]
     )
 
     text = response.choices[0].message.content

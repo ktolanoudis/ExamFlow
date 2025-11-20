@@ -6,30 +6,17 @@
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 <style>
 body { font-family: Arial; background:#f4f4f4; margin:0; padding-bottom:90px; }
-header {background: #4f46e5;color: white;padding: 20px ;text-align: center; font-size: 28px; font-weight: bold;}
+header { background: #4f46e5; color: white; padding: 20px; text-align: center; font-size: 28px; font-weight: bold; }
 main { max-width:900px; margin:40px auto; background:white; padding:20px; border-radius:10px; }
-button { padding:10px; background:#4f46e5; color:white; border:none; border-radius:6px; }
+button { padding:10px; background:#4f46e5; color:white; border:none; border-radius:6px; cursor:pointer; }
 textarea { width:100%; }
+.footer-left { position: fixed; bottom: 20px; left: 20px; pointer-events: none; display:flex; align-items: center;}
+.footer-right { position: fixed; bottom: 7px; right: 20px; pointer-events: none; display:flex; align-items: center;}
+.footer-logo { display: block; }
+.footer-right .footer-logo {height: 70px;}
+.footer-left .footer-logo {height: 40px;}
 
-/* ===== Footer Logos Styling ===== */
-.footer-logos {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    display: flex;
-    align-items: center;
-    gap: 15px;
-}
 
-.footer-logo {
-    height: 40px;
-}
-
-.footer-divider {
-    width: 2px;
-    height: 40px;
-    background: #000;
-}
 </style>
 </head>
 <body>
@@ -39,7 +26,7 @@ textarea { width:100%; }
 <main>
 <h2>Upload PDF(s)</h2>
 <input id="pdfInput" type="file" multiple />
-<p id="status" style="display:none;"></p> <!-- hidden initially -->
+<p id="status" style="display:none;"></p>
 
 <div id="questionBox" style="display:none;">
   <h3 id="questionText"></h3>
@@ -47,20 +34,22 @@ textarea { width:100%; }
   <br><br>
   <button onclick="checkAnswer()">Check</button>
   <p id="feedback"></p>
+  <button id="showAnswerBtn" style="display:none;" onclick="showModelAnswer()">Show Answer</button>
+  <p id="modelAnswerBox" style="display:none; background:#f0f0ff; padding:10px; border-radius:6px;"></p>
 </div>
 </main>
 
-<!-- ✅ Bottom-left logos -->
-<div class="footer-logos">
-    <img class="footer-logo"
-         src="https://upload.wikimedia.org/wikipedia/commons/9/99/ETH_Z%C3%BCrich_Logo_black.svg"
-         alt="ETH Zürich Logo">
+<div class="footer-left">
+<img class="footer-logo"
+src="https://upload.wikimedia.org/wikipedia/commons/9/99/ETH_Z%C3%BCrich_Logo_black.svg"
+alt="ETH Zürich Logo">
+</div>
 
-    <div class="footer-divider"></div>
 
-    <img class="footer-logo"
-         src="https://im.ethz.ch/research/_jcr_content/par/twocolumn/par_left/textimage_1894561152/image.imageformat.text50percent.685615658.svg"
-         alt="ETH Agentic Systems Lab Logo">
+<div class="footer-right">
+<img class="footer-logo"
+src="https://im.ethz.ch/research/_jcr_content/par/twocolumn/par_left/textimage_1894561152/image.imageformat.text50percent.685615658.svg"
+alt="ETH Agentic Systems Lab Logo">
 </div>
 
 <script>
@@ -92,29 +81,51 @@ async function uploadAndAsk(files) {
         const resp = await axios.post('http://localhost:8000/upload_pdf/', formData);
         console.log("Response:", resp.data);
 
-        const parsed = JSON.parse(resp.data.question);
+        const parsed = typeof resp.data.question === 'string'
+            ? JSON.parse(resp.data.question)
+            : resp.data.question;
+
         questionText.textContent = parsed.question;
         modelAnswer = parsed.model_answer;
 
         questionBox.style.display = "block";
         statusEl.textContent = "Question ready!";
+
+        document.getElementById('showAnswerBtn').style.display = "none";
+        document.getElementById('modelAnswerBox').style.display = "none";
+        feedbackEl.textContent = "";
     } catch (err) {
         statusEl.textContent = "Upload error: " + err.message;
         console.error(err);
     }
 }
 
+function showModelAnswer() {
+    const box = document.getElementById('modelAnswerBox');
+    box.textContent = modelAnswer;
+    box.style.display = "block";
+}
+
 async function checkAnswer() {
     const studentAnswer = document.getElementById('answer').value;
+
+    feedbackEl.textContent = "Checking answer, please wait...";
 
     const fd = new FormData();
     fd.append('student_answer', studentAnswer);
     fd.append('model_answer', modelAnswer);
 
-    const resp = await axios.post('http://localhost:8000/check_answer/', fd);
-    const parsed = JSON.parse(resp.data.result);
+    try {
+        const resp = await axios.post('http://localhost:8000/check_answer/', fd);
+        const parsed = typeof resp.data.result === 'string'
+            ? JSON.parse(resp.data.result)
+            : resp.data.result;
 
-    feedbackEl.textContent = parsed.Grade + " - " + parsed.feedback;
+        feedbackEl.textContent = parsed.Grade + " - " + parsed.feedback;
+        document.getElementById('showAnswerBtn').style.display = "inline-block";
+    } catch (err) {
+        feedbackEl.textContent = "Error checking answer.";
+    }
 }
 </script>
 </body>
