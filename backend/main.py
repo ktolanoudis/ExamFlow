@@ -3,9 +3,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from PyPDF2 import PdfReader
 import os
 import openai
+from typing import List
+import io
 
-# New OpenAI client
-client = openai.OpenAI(api_key="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")
+# OpenAI client (correct way)
+client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 app = FastAPI()
 
@@ -17,50 +19,44 @@ app.add_middleware(
 )
 
 
-def read_pdf(file: UploadFile):
-    """Extract text from a single PDF file."""
-    reader = PdfReader(file.file)
-    text = ""
-    for page in reader.pages:
-        page_text = page.extract_text()
-        if page_text:
-            text += page_text + "\n"
-    return text
-
-
 @app.post("/upload_pdf/")
-async def upload_pdf(files: list[UploadFile] = File(...)):
-    """Generate a question from multiple PDFs using OpenAI 1.x client."""
+async def upload_pdf(files: List[UploadFile] = File(...)):
+    """Generate a question from multiple PDFs using ChatGPT-4."""
     if not files:
         return {"error": "No PDF files uploaded."}
 
     full_text = ""
+
     for file in files:
-        full_text += read_pdf(file) + "\n\n"
+        contents = await file.read()
+        reader = PdfReader(io.BytesIO(contents))
 
-    truncated_text = full_text[:12000]
-
+        for page in reader.pages:
+            text = page.extract_text()
+            if text:
+                full_text += text + "\n"
     prompt = f"""
-You are a university professor. Read the course material below and generate **one oral exam question**.
+You are a university professor. Read the course material below and generate **one highly relevant oral exam question**.
 
 COURSE MATERIAL:
 ------
-{truncated_text}
+{full_text}
 ------
 
-Return JSON with:
-- "question": exam question text
-- "model_answer": ideal answer (3–6 sentences)
+Return JSON with EXACTLY:
+{{
+  "question": "<exam question>",
+  "model_answer": "<3-6 sentence ideal answer>"
+}}
 """
 
     response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-4o-mini",  # ChatGPT 4-level model
         messages=[{"role": "user", "content": prompt}],
         max_tokens=500,
-        temperature=0.2
+        temperature=0.1,
     )
 
-    # New interface: use response.choices[0].message.content
     text = response.choices[0].message.content
     return {"question": text}
 
@@ -70,26 +66,42 @@ async def check_answer(
     student_answer: str = Form(...),
     model_answer: str = Form(...)
 ):
-    """Score a student answer using OpenAI 1.x client."""
     prompt = f"""
-You are grading a student's oral exam response.
+    You are grading a student's exam response using the Swiss university grading system.
 
-MODEL ANSWER:
-{model_answer}
+    Use ONLY the following grades:
+    1.0, 1.25, 1.5, 1.75,
+    2.0, 2.25, 2.5, 2.75,
+    3.0, 3.25, 3.5, 3.75,
+    4.0, 4.25, 4.5, 4.75,
+    5.0, 5.25, 5.5, 5.75, 6.0
 
-STUDENT ANSWER:
-{student_answer}
+    Grade guideline:
+    6.0 = Perfect understanding, precise terminology
+    5.5 = Very strong, minor omissions
+    5.0 = Good understanding, slight flaws
+    4.0 = Passable, some conceptual gaps
+    <4.0 = Insufficient understanding
+    - Always select one of the allowed grades. Do NOT invent other numbers.
 
-Return JSON with:
-- "score": number from 0 to 10
-- "feedback": short explanation
-"""
+    Return JSON only with EXACT keys:
+    {{
+      "Grade": <one of the valid grades above>,
+      "feedback": "Short explanation (2-4 sentences) focusing on correctness, depth, and clarity."
+    }}
+
+    MODEL ANSWER:
+    {model_answer}
+
+    STUDENT ANSWER:
+    {student_answer}
+    """
 
     response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],
         max_tokens=300,
-        temperature=0.2
+        temperature=0.1
     )
 
     text = response.choices[0].message.content

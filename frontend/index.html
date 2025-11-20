@@ -1,154 +1,121 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>ExamFlow — Upload PDFs</title>
+<title>ExamFlow</title>
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 <style>
-  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; background:#f0f2f5; margin:0; padding:0; position:relative; min-height:100vh; }
-  header { background:#0d1b2a; color:white; padding:20px; text-align:center; font-size:1.6rem; font-weight:700; }
-  main { max-width:900px; margin:24px auto; background:white; padding:28px; border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,0.12); }
-  input[type=file], button, input[type=text] { font-size:14px; padding:10px; border-radius:6px; border:1px solid #ccc; }
-  button { background:#4f46e5; color:white; cursor:pointer; transition:0.2s; }
-  button:hover { background:#4338ca; }
-  button:disabled { background:#c7d2fe; cursor:not-allowed; }
-  #status { margin-top:12px; color:#555; font-size:13px; }
-  #questionBox { margin-top:20px; padding:20px; border-radius:8px; background:#f9fafb; box-shadow:0 2px 8px rgba(0,0,0,0.08); }
-  #feedback { margin-top:14px; font-weight:600; color:#111827; }
-  #ethLogo { position: fixed; bottom:10px; left:10px; height:50px; opacity:0.85; }
+body { font-family: Arial; background:#f4f4f4; margin:0; padding-bottom:90px; }
+header {background: #4f46e5;color: white;padding: 20px ;text-align: center; font-size: 28px; font-weight: bold;}
+main { max-width:900px; margin:40px auto; background:white; padding:20px; border-radius:10px; }
+button { padding:10px; background:#4f46e5; color:white; border:none; border-radius:6px; }
+textarea { width:100%; }
+
+/* ===== Footer Logos Styling ===== */
+.footer-logos {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.footer-logo {
+    height: 40px;
+}
+
+.footer-divider {
+    width: 2px;
+    height: 40px;
+    background: #000;
+}
 </style>
 </head>
 <body>
 
-<header>ExamFlow — Agentic Systems Lab</header>
+<header>ExamFlow</header>
 
 <main>
-  <h2>Upload Course PDFs</h2>
-  <!-- name="files" matches backend -->
-  <input id="pdfFiles" type="file" name="files" accept="application/pdf" multiple />
-  <div id="status">No PDFs uploaded.</div>
+<h2>Upload PDF</h2>
+<input id="pdfInput" type="file" multiple />
+<p id="status" style="display:none;"></p> <!-- hidden initially -->
 
-  <div id="questionBox" style="display:none;">
-    <h2>Question <span id="questionCounter"></span></h2>
-    <p id="questionText"></p>
-
-    <h3>Your Answer</h3>
-    <input id="answer" type="text" placeholder="Type your answer here" style="width:100%; margin-top:8px;" />
-    <div style="margin-top:12px;">
-      <button id="checkBtn" onclick="checkAnswer()" disabled>Check Answer</button>
-      <button id="nextBtn" onclick="nextQuestion()" style="margin-left:8px;" disabled>Next Question</button>
-    </div>
-    <p id="feedback"></p>
-  </div>
+<div id="questionBox" style="display:none;">
+  <h3 id="questionText"></h3>
+  <textarea id="answer" rows="5"></textarea>
+  <br><br>
+  <button onclick="checkAnswer()">Check</button>
+  <p id="feedback"></p>
+</div>
 </main>
 
-<img id="ethLogo" src="https://upload.wikimedia.org/wikipedia/commons/9/99/ETH_Z%C3%BCrich_Logo_black.svg" alt="ETH Zurich Logo">
+<!-- ✅ Bottom-left logos -->
+<div class="footer-logos">
+    <img class="footer-logo"
+         src="https://upload.wikimedia.org/wikipedia/commons/9/99/ETH_Z%C3%BCrich_Logo_black.svg"
+         alt="ETH Zürich Logo">
+
+    <div class="footer-divider"></div>
+
+    <img class="footer-logo"
+         src="https://im.ethz.ch/research/_jcr_content/par/twocolumn/par_left/textimage_1894561152/image.imageformat.text50percent.685615658.svg"
+         alt="ETH D-INFK Logo">
+</div>
 
 <script>
-let questions = [];
-let currentIndex = 0;
-let modelAnswer = "";
-
 const statusEl = document.getElementById('status');
 const questionBox = document.getElementById('questionBox');
 const questionText = document.getElementById('questionText');
-const questionCounter = document.getElementById('questionCounter');
-const checkBtn = document.getElementById('checkBtn');
-const nextBtn = document.getElementById('nextBtn');
 const feedbackEl = document.getElementById('feedback');
 
+let modelAnswer = "";
+
+document.getElementById('pdfInput').addEventListener('change', async (ev) => {
+    const files = Array.from(ev.target.files);
+    if (!files.length) return;
+    statusEl.style.display = "block";
+    statusEl.textContent = "Uploading PDFs...";
+    await uploadAndAsk(files);
+});
+
 async function uploadAndAsk(files) {
-  if (!files || files.length === 0) return;
-  statusEl.textContent = `Uploading ${files.length} PDF(s) and generating questions...`;
-  feedbackEl.textContent = '';
-  questionBox.style.display = 'none';
-  checkBtn.disabled = true;
-  nextBtn.disabled = true;
+    statusEl.textContent = "Uploading PDFs...";
 
-  const formData = new FormData();
-  for (let f of files) formData.append('files', f); // <-- must match backend param
+    const formData = new FormData();
+    for (const f of files) {
+        console.log("Sending:", f.name);
+        formData.append('files', f);
+    }
 
-  try {
-    const resp = await fetch('http://localhost:8000/upload_pdf/', {
-      method: 'POST',
-      body: formData
-    });
-    if (!resp.ok) throw new Error(`Server returned ${resp.status}`);
-    const data = await resp.json();
+    try {
+        const resp = await axios.post('http://localhost:8000/upload_pdf/', formData);
+        console.log("Response:", resp.data);
 
-    let parsed;
-    try { parsed = JSON.parse(data.question); } catch { parsed = {question:data.question, model_answer:data.question}; }
+        const parsed = JSON.parse(resp.data.question);
+        questionText.textContent = parsed.question;
+        modelAnswer = parsed.model_answer;
 
-    questions = Array.isArray(parsed) ? parsed : [parsed];
-    currentIndex = 0;
-    showQuestion();
-    statusEl.textContent = `Questions ready! Total: ${questions.length}`;
-  } catch (err) {
-    statusEl.textContent = 'Upload failed: ' + err.message;
-    console.error(err);
-  }
-}
-
-function showQuestion() {
-  if (currentIndex >= questions.length) {
-    statusEl.textContent = "All questions completed!";
-    questionBox.style.display = 'none';
-    return;
-  }
-
-  const q = questions[currentIndex];
-  questionText.innerText = q.question;
-  modelAnswer = q.model_answer;
-  questionCounter.innerText = `${currentIndex + 1} / ${questions.length}`;
-  questionBox.style.display = 'block';
-  checkBtn.disabled = false;
-  nextBtn.disabled = true;
-  feedbackEl.textContent = '';
-  document.getElementById('answer').value = '';
+        questionBox.style.display = "block";
+        statusEl.textContent = "Question ready!";
+    } catch (err) {
+        statusEl.textContent = "Upload error: " + err.message;
+        console.error(err);
+    }
 }
 
 async function checkAnswer() {
-  const studentAnswer = document.getElementById('answer').value.trim();
-  if (!studentAnswer) {
-    feedbackEl.innerText = 'Please type an answer before checking.';
-    return;
-  }
-  feedbackEl.innerText = 'Checking answer...';
-  checkBtn.disabled = true;
+    const studentAnswer = document.getElementById('answer').value;
 
-  try {
-    const formData = new FormData();
-    formData.append('student_answer', studentAnswer);
-    formData.append('model_answer', modelAnswer);
+    const fd = new FormData();
+    fd.append('student_answer', studentAnswer);
+    fd.append('model_answer', modelAnswer);
 
-    const resp = await fetch('http://localhost:8000/check_answer/', {
-      method: 'POST',
-      body: formData
-    });
-    if (!resp.ok) throw new Error(`Server returned ${resp.status}`);
-    const data = await resp.json();
-    let parsed;
-    try { parsed = JSON.parse(data.result); } catch { parsed = {score:'?', feedback:data.result}; }
+    const resp = await axios.post('http://localhost:8000/check_answer/', fd);
+    const parsed = JSON.parse(resp.data.result);
 
-    feedbackEl.innerText = `Score: ${parsed.score} — ${parsed.feedback}`;
-    nextBtn.disabled = false;
-  } catch (err) {
-    feedbackEl.innerText = 'Error checking answer: ' + err.message;
-    console.error(err);
-  }
+    feedbackEl.textContent = parsed.Grade + " - " + parsed.feedback;
 }
-
-function nextQuestion() {
-  currentIndex++;
-  showQuestion();
-}
-
-// Correct file input event
-document.getElementById('pdfFiles').addEventListener('change', (ev) => {
-  const files = Array.from(ev.target.files).filter(f => f.type === 'application/pdf');
-  if (files.length === 0) {
-    statusEl.textContent = 'Please select at least one PDF file.';
-    return;
-  }
-  uploadAndAsk(files);
-});
 </script>
+</body>
+</html>
